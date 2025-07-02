@@ -7,10 +7,11 @@ use crate::emitter::tag_handler::{get_reasons_from_tag, LineCol, Reason};
 use log::error;
 use std::collections::HashMap;
 use std::process::exit;
-use wasmparser::{ExternalKind, TypeRef};
-use wirm::ir::module::module_types::Types;
+// use wasmparser::{ExternalKind, TypeRef};
+// use wirm::ir::module::module_types::Types;
 use wirm::ir::module::side_effects::{InjectType as WirmInjectType, Injection as WirmInjection};
-use wirm::ir::types::{DataType as WirmType, FuncInstrMode, InstrumentationMode};
+// use wirm::ir::types::{DataType as WirmType, FuncInstrMode, InstrumentationMode};
+use wirm::ir::types::{FuncInstrMode, InstrumentationMode};
 use wirm::Module;
 
 pub const MAX_ERRORS: i32 = 15;
@@ -305,7 +306,7 @@ pub enum Injection {
         /// The name of the imported item.
         name: String,
         /// The type of the import.
-        type_ref: TypeRef,
+        type_ref: String,
         /// Explains why this was injected (if it can be isolated to a
         /// specific Whamm script location).
         cause: Cause,
@@ -315,7 +316,7 @@ pub enum Injection {
         /// The name of the exported item.
         name: String,
         /// The kind of the exported item.
-        kind: ExternalKind,
+        kind: String,
         /// The index of the exported item.
         index: u32,
         /// Explains why this was injected (if it can be isolated to a
@@ -323,7 +324,7 @@ pub enum Injection {
         cause: Cause,
     },
     Type {
-        ty: Types,
+        ty: String,
         /// Explains why this was injected (if it can be isolated to a
         /// specific Whamm script location).
         cause: Cause,
@@ -371,7 +372,7 @@ pub enum Injection {
         /// The global's ID.
         id: u32, // TODO -- may not need (it's ordered in a vec)
         /// The global's type.
-        ty: WirmType,
+        ty: String,
         /// Whether the global is shared.
         shared: bool,
         /// Whether the global is mutable.
@@ -390,9 +391,9 @@ pub enum Injection {
         /// The function's name.
         fname: Option<String>,
         /// The function's signature (params, results).
-        sig: (Vec<WirmType>, Vec<WirmType>),
+        sig: (Vec<String>, Vec<String>),
         /// The function's local variables
-        locals: Vec<WirmType>,
+        locals: Vec<String>,
         /// The body of the function (in WAT).
         body: Vec<String>,
 
@@ -405,7 +406,7 @@ pub enum Injection {
     Local {
         /// The ID of the function this local is inserted into.
         target_fid: u32,
-        ty: WirmType,
+        ty: String,
 
         /// Explains why this was injected (if it can be isolated to a
         /// specific Whamm script location).
@@ -455,7 +456,7 @@ impl Injection {
                 vec![Self::Import {
                     module: module.to_owned(),
                     name: name.to_owned(),
-                    type_ref: type_ref.to_owned(),
+                    type_ref: format!("{:?}", type_ref),
                     cause: Cause::from(reasons.first().unwrap()),
                 }]
             }
@@ -468,7 +469,7 @@ impl Injection {
                 let reasons = get_reasons_from_tag(tag.data_mut());
                 vec![Self::Export {
                     name: name.to_owned(),
-                    kind: kind.to_owned(),
+                    kind: format!("{:?}", kind),
                     index: *index,
                     cause: Cause::from(reasons.first().unwrap()),
                 }]
@@ -476,7 +477,7 @@ impl Injection {
             WirmInjection::Type { ty, tag, .. } => {
                 let reasons = get_reasons_from_tag(tag.data_mut());
                 vec![Self::Type {
-                    ty: ty.to_owned(),
+                    ty: format!("{:?}", ty),
                     cause: Cause::from(reasons.first().unwrap()),
                 }]
             }
@@ -528,7 +529,7 @@ impl Injection {
                 let reasons = get_reasons_from_tag(tag.data_mut());
                 vec![Self::Global {
                     id: *id,
-                    ty: ty.to_owned(),
+                    ty: ty.to_string(),
                     shared: *shared,
                     mutable: *mutable,
                     init_expr: vec![init_expr_wat],
@@ -548,11 +549,17 @@ impl Injection {
                     body_ops.push(format!("{:?}", instr.op));
                 }
                 let reasons = get_reasons_from_tag(tag.data_mut());
+
+                use crate::api::utils::get_string_contents;
+                let params = get_string_contents(&sig.0);
+                let results = get_string_contents(&sig.1);
+                let locals_strs = get_string_contents(locals);
+
                 vec![Self::Func {
                     id: *id,
                     fname: fname.to_owned(),
-                    sig: sig.to_owned(),
-                    locals: locals.to_owned(),
+                    sig: (params, results),
+                    locals: locals_strs,
                     body: body_ops,
                     cause: Cause::from(reasons.first().unwrap()),
                 }]
@@ -565,7 +572,7 @@ impl Injection {
                 let reasons = get_reasons_from_tag(tag.data_mut());
                 vec![Self::Local {
                     target_fid: *target_fid,
-                    ty: ty.to_owned(),
+                    ty: ty.to_string(),
                     cause: Cause::from(reasons.first().unwrap()),
                 }]
             }

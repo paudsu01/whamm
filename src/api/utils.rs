@@ -14,6 +14,10 @@ use std::process::Command;
 /// * `defs_path`: The path to follow to find the provider definitions
 /// * `print_vars`: Whether to print the bound variables for the match rule
 /// * `print_functions`: Whether to print the bound functions for the match rule
+pub fn get_string_contents<T: std::fmt::Display>(array: &Vec<T>) -> Vec<String> {
+    array.iter().map(|p| p.to_string()).collect()
+}
+
 pub fn print_info(
     rule: String,
     defs_path: Option<String>,
