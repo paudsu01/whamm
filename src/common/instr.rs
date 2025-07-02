@@ -100,6 +100,34 @@ pub fn dry_run_on_bytes<'a>(
     }
 }
 
+pub fn dry_run_on_bytes_with_bytes<'a>(
+    core_lib: &[u8],
+    def_yamls: &Vec<String>,
+    target_wasm: &'a mut Module,
+    script_path: String,
+    script: String,
+    user_lib: Vec<(String, String, Vec<u8>)>,
+    max_errors: i32,
+    config: Config,
+) -> Result<HashMap<WirmInjectType, Vec<WirmInjection<'a>>>, Vec<WhammError>> {
+    let mut metrics = Metrics::default();
+    if let Err(err) = run(
+        core_lib,
+        def_yamls,
+        target_wasm,
+        &script,
+        &script_path,
+        user_lib,
+        max_errors,
+        &mut metrics,
+        config,
+    ) {
+        Err(err.pull_errs())
+    } else {
+        Ok(target_wasm.pull_side_effects())
+    }
+}
+
 pub fn parse_user_lib_paths(paths: Vec<String>) -> Vec<(String, String, Vec<u8>)> {
     let mut res = vec![];
     for path in paths.iter() {
