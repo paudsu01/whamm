@@ -135,8 +135,8 @@ impl Reason {
 
 #[derive(Clone, Copy, Debug)]
 pub struct LineCol {
-    l: u32,
-    c: u32,
+    pub l: u32,
+    pub c: u32,
 }
 impl From<(usize, usize)> for LineCol {
     fn from(lc: (usize, usize)) -> Self {
