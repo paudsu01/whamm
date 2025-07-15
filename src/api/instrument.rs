@@ -166,6 +166,48 @@ pub fn instrument_as_dry_run(
     }
 }
 
+/// Using the passed Whamm script content and target application bytes, perform a dry run of instrumentation and return metadata
+/// encoding the side effects that would occur for some program (`app_wasm_path`).
+///
+/// * `app_wasm`: Target application bytes to instrument.
+/// * `script_path`: The path to the whamm script .mm file.
+/// * `script`: The contents of the whamm script .mm file.
+/// * `user_lib`: Vec of user-provided library wasm modules
+pub fn instrument_as_dry_run_with_bytes(
+    app_wasm: Vec<u8>,
+    script_path: String,
+    script: String,
+    user_lib: Vec<(String, Option<String>, String, Vec<u8>)>,
+) -> Result<HashMap<WirmInjectType, Vec<Injection>>, Vec<WhammError>> {
+    let mut target_wasm = Module::parse(&app_wasm, false).unwrap();
+    let (def_yamls, core_lib) = get_defs_and_lib(None, None);
+
+    let response = instr::dry_run_on_bytes_with_bytes(
+        &core_lib,
+        &def_yamls,
+        &mut target_wasm,
+        script_path,
+        script,
+        user_lib,
+        MAX_ERRORS,
+        Config::default_rewriting(),
+    );
+    match response {
+        Ok(mut side_effects) => {
+            let mut injections = HashMap::new();
+            for (ty, l) in side_effects.iter_mut() {
+                let mut list = Vec::new();
+                for inj in l.iter_mut() {
+                    list.extend(Injection::from(inj));
+                }
+                injections.insert(*ty, list);
+            }
+            Ok(injections)
+        }
+        Err(errs) => Err(WhammError::from_errs(errs)),
+    }
+}
+
 /// The instrumentation configuration
 pub struct Config {
     /// Whether to emit a monitor module that can be used to dynamically instrument a program
