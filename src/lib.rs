@@ -1,6 +1,6 @@
 pub mod api;
 
-mod common;
+pub mod common;
 mod emitter;
 mod generator;
 mod lang_features;
