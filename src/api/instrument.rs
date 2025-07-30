@@ -161,24 +161,35 @@ pub fn instrument_as_dry_run_rewriting(
 /// * `script_path`: The path to the whamm script .mm file.
 /// * `script`: The contents of the whamm script .mm file.
 /// * `user_lib`: Vec of user-provided library wasm modules
-pub fn instrument_as_dry_run_rewriting_with_bytes(
-    app_wasm: Vec<u8>,
+pub fn instrument_as_dry_run_with_bytes(
+    app_wasm: Option<Vec<u8>>,
     script_path: String,
     script: String,
     user_lib: Vec<(String, Option<String>, String, Vec<u8>)>,
+    for_wizard: bool,
 ) -> Result<HashMap<WirmInjectType, Vec<Injection>>, Vec<WhammError>> {
-    let mut target_wasm = Module::parse(&app_wasm, false).unwrap();
+    let app_wasm = app_wasm.unwrap_or_default();
+    let mut module = if for_wizard {
+        Module::default()
+    } else {
+        Module::parse(&app_wasm, false).unwrap()
+    };
+
     let (def_yamls, core_lib) = get_defs_and_lib(None, None);
 
     let response = instr::dry_run_on_bytes_with_bytes(
         &core_lib,
         &def_yamls,
-        &mut target_wasm,
+        &mut module,
         script_path,
         script,
         user_lib,
         MAX_ERRORS,
-        Config::default_rewriting(),
+        if for_wizard {
+            Config::default_monitor_module()
+        } else {
+            Config::default_rewriting()
+        },
     );
     handle_dry_run_response(response)
 }
